@@ -1,6 +1,34 @@
 ---
 pipeline:
 
+# drone repo name
+# UKHomeOffice/sysdig-agent
+
+# build steps
+
+  build_image:
+    privileged: true
+    image: docker:1.11
+    environment:
+      - DOCKER_HOST=tcp://127.0.0.1:2375
+    commands:
+      - docker build -t sysdig-agent .
+    when:
+      event: [push, pull_request]
+
+  image_to_quay:
+    image: docker:1.11
+    environment:
+      - DOCKER_HOST=tcp://127.0.0.1:2375
+      - SYSDIG_VERSION=v0.99.2214dev-${DRONE_COMMIT_SHA:0:7}
+    commands:
+      - docker login -u="ukhomeofficedigital+sysdig_agent" -p=${DOCKER_TOKEN} quay.io
+      - docker tag sysdig-agent quay.io/ukhomeofficedigital/sysdig-agent:${SYSDIG_VERSION}
+      - docker push quay.io/ukhomeofficedigital/sysdig-agent:${SYSDIG_VERSION}
+    when:
+      branch: master
+      event: [push]
+
 # start needed services
 services:
   dind:
@@ -9,17 +37,3 @@ services:
     command:
       - "-s"
       - "overlay"
-
-
-# build steps
-
-build-image:
-  privileged: true
-  image: docker:1.11
-  environment:
-    - DOCKER_HOST=tcp://127.0.0.1:2375
-  commands:
-    - make build
-  when:
-    branch: master
-    event: push
